@@ -66,10 +66,11 @@ export const AttachmentAddForm = ({
             </div>
           </DropdownMenuTrigger>
         )}
-        <DropdownMenuContent className="max-h-60 overflow-scroll">
+        <DropdownMenuContent className="max-h-60 overflow-y-auto">
           {repoData.pulls &&
             repoData.pulls.map((pull: any) => (
               <DropdownMenuItem
+                className="cursor-pointer"
                 key={pull.number}
                 onClick={() => handleAttachmentAdd(pull.number, "pull_request")}
               >
@@ -88,10 +89,11 @@ export const AttachmentAddForm = ({
             </div>
           </DropdownMenuTrigger>
         )}
-        <DropdownMenuContent className="max-h-60 overflow-scroll">
+        <DropdownMenuContent className="max-h-60 overflow-y-auto">
           {repoData.issues &&
             repoData.issues.map((issue: any) => (
               <DropdownMenuItem
+                className="cursor-pointer"
                 key={issue.number}
                 onClick={() => handleAttachmentAdd(issue.number, "issue")}
               >
@@ -110,10 +112,11 @@ export const AttachmentAddForm = ({
             </div>
           </DropdownMenuTrigger>
         )}
-        <DropdownMenuContent className="max-h-60 overflow-scroll">
+        <DropdownMenuContent className="max-h-60 overflow-y-auto">
           {repoData.commits &&
             repoData.commits.map((commit: any) => (
               <DropdownMenuItem
+                className="cursor-pointer"
                 key={commit.sha}
                 onClick={() => handleAttachmentAdd(commit.sha, "commit")}
               >

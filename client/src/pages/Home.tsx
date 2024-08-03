@@ -67,7 +67,7 @@ const Home = () => {
   return (
     <>
       <div className="container mb-4">
-        <h1 className="font-bold text-2xl py-4">Your workspace</h1>
+        <h1 className="font-bold text-2xl py-9">Your workspace</h1>
         <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {boards.map((board) => (
             <BoardCard board={board} key={board.id} />

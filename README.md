@@ -35,11 +35,30 @@ This document provides an overview of the structure of the repository.
 - **README.md**: Provides an overview and setup instructions for the client-side application.
 - Configuration files
 
+## ENV Variables
+
+- Examples are provided in `.env.example` files in the root and client directories.
+- For mailing, this repository uses `nodemailer` and Brevo SMTP server. Set these variables in the root directory `.env` file accordingly:
+  - `NODEMAILER_SENDER`
+  - `NODEMAILER_USER`
+  - `NODEMAILER_PASS`
+- For Firebase, set the following variables in the root directory `.env` file:
+  - `FIREBASE_PROJECT_ID`
+  - `FIREBASE_CLIENT_EMAIL`
+  - `FIREBASE_PRIVATE_KEY`
+  - `FIREBASE_DATABASE_URL`
+- and in the client directory `.env` file (don't forget to change config in client's `firebase.ts`):
+  - `VITE_FIREBASE_API_KEY`
+
 ## How to Run
 
 - Clone the repository
 - Run `pnpm install` in root & client directory to install dependencies
 - Run `pnpm dev` in root & client directory to start the server and client-side application
+
+## Screenshots
+
+- https://docs.google.com/presentation/d/1osZkcShKD8SDjth-5KAqz-rJMU_fwEBuNYYcBdRgMlE/edit?usp=sharing
 
 ## Notes
 
