@@ -38,7 +38,7 @@ This document provides an overview of the structure of the repository.
 ## How to Run
 
 - Clone the repository
-- Run `pnpm install` in the root directory
+- Run `pnpm install` in root & client directory to install dependencies
 - Run `pnpm dev` in root & client directory to start the server and client-side application
 
 ## Notes

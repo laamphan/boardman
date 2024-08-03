@@ -51,8 +51,9 @@ export const userSlice: Slice<UserState> = createSlice({
       state.loading = true
       state.error = null
     },
-    verifySuccess: (state) => {
+    verifySuccess: (state, action: PayloadAction<User>) => {
       state.loading = false
+      state.currentUser = action.payload
       state.error = null
     },
     verifyFailure: (state, action: PayloadAction<any>) => {

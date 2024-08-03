@@ -24,6 +24,10 @@ export const SideBar = () => {
   const { view } = useSelector((state: RootState) => state.user)
 
   useEffect(() => {
+    if (!params.boardId) {
+      return
+    }
+
     const membersQuery = query(
       collection(db, "memberships"),
       where("boardId", "==", params.boardId)
