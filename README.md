@@ -4,7 +4,7 @@ This document provides an overview of the structure of the repository.
 
 ## Root Directory
 
-- Config files
+- Configuration files
 
 ## Directories
 
@@ -25,45 +25,25 @@ This document provides an overview of the structure of the repository.
   - **pages**: React pages.
   - **redux**: Redux store, actions, and reducers.
   - **types**: TypeScript type definitions.
-    - [db.ts](client/src/types/db.ts): Type definitions related to the database.
-    - [dnd.ts](client/src/types/dnd.ts): Type definitions for React drag-and-drop.
-    - [firebase.d.ts](client/src/types/firebase.d.ts): Type definitions for Firebase.
+    - _db.ts_ : Type definitions related to the database.
+    - _dnd.ts_ : Type definitions for React drag-and-drop.
+    - _firebase.d.ts_ : Type definitions for Firebase.
   - **main.tsx**: Entry point for the client-side application.
   - **App.tsx**: Main component for the client-side application.
   - **firebase.ts**: Firebase configuration.
 
-
-
 - **README.md**: Provides an overview and setup instructions for the client-side application.
+- Configuration files
 
-## Scripts
+## How to Run
 
-- **dev**: Starts the development server using nodemon.
-- **start**: Starts the production server.
-- **build**: Installs dependencies and builds the client-side application.
-
-## Dependencies
-
-- **cookie-parser**: Middleware for parsing cookies.
-- **cors**: Middleware for enabling CORS.
-- **dotenv**: Loads environment variables from a `.env` file.
-- **express**: Web framework for Node.js.
-- **firebase**: Firebase client SDK.
-- **firebase-admin**: Firebase Admin SDK.
-- **jsonwebtoken**: Library for working with JSON Web Tokens.
-- **nodemailer**: Module for sending emails.
-- **nodemon**: Utility for automatically restarting the server during development.
-- **uuidv4**: Library for generating UUIDs.
-
-## DevDependencies
-
-- **@types**: TypeScript type definitions for various libraries.
-- **ts-node**: TypeScript execution environment for Node.js.
-- **typescript**: TypeScript language.
+- Clone the repository
+- Run `pnpm install` in the root directory
+- Run `pnpm dev` in root & client directory to start the server and client-side application
 
 ## Notes
 
-- The client-side application is built using React, TypeScript, and Vite.
-- The API interacts with GitHub to fetch repository information.
+- If you want to use `npm` or `yarn`, remove `pnpm-lock.yaml` and replace `pnpm` with the respective package manager in the scripts.
+- For using Github API, sign in with Github to avoid being rate-limited.
 
 For more details, refer to the respective files and directories mentioned above.
