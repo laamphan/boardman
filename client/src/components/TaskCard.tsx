@@ -121,7 +121,7 @@ export const TaskCard = ({ task, members, cardTitle }: TaskCardProps) => {
     collect: (monitor) => ({
       isDragging: !!monitor.isDragging(),
     }),
-    item: { taskId: task.id },
+    item: { taskId: task.id, cardId: task.cardId },
   }))
 
   const handleTaskUpdate = async (e: React.FormEvent<HTMLButtonElement>) => {

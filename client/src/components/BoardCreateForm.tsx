@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button"
 import { Card } from "@/components/ui/Card"
 import { Input } from "@/components/ui/Input"
 
-import { RootState } from "../redux/store"
+import { RootState } from "@/redux/store"
 
 type BoardCreateFormProps = {
   setIsEditing: (isEditing: boolean) => void

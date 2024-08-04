@@ -6,7 +6,7 @@ import {
   query,
   where,
 } from "firebase/firestore"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useDispatch } from "react-redux"
 import { useParams } from "react-router-dom"
 
@@ -27,6 +27,8 @@ const BoardPage = () => {
   const [cards, setCards] = useState<CardDB[]>([])
   const [members, setMembers] = useState<User[]>([])
   const [isEditing, setIsEditing] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+
   const dispatch = useDispatch()
 
   useEffect(() => {
@@ -107,6 +109,62 @@ const BoardPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handleScroll = (event: MouseEvent | TouchEvent) => {
+      const clientX =
+        "touches" in event ? event.touches[0].clientX : event.clientX
+      const element = scrollRef.current
+
+      if (element) {
+        const rect = element.getBoundingClientRect()
+        const scrollAmount = 15
+
+        if (clientX < rect.left + 50) {
+          element.scrollBy(-scrollAmount, 0)
+        } else if (clientX > rect.right - 50) {
+          element.scrollBy(scrollAmount, 0)
+        }
+      }
+    }
+
+    const handleMouseDown = () => {
+      setIsDragging(true)
+    }
+    const handleMouseMove = (event: MouseEvent) => {
+      if (isDragging) {
+        handleScroll(event)
+      }
+    }
+    const handleMouseUp = () => {
+      setIsDragging(false)
+    }
+
+    const handleTouchMove = (event: TouchEvent) => {
+      handleScroll(event)
+    }
+
+    const element = scrollRef.current
+    if (element) {
+      element.addEventListener("mousedown", handleMouseDown)
+      document.addEventListener("mousemove", handleMouseMove)
+      document.addEventListener("mouseup", handleMouseUp)
+
+      element.addEventListener("touchmove", handleTouchMove, { passive: true })
+    }
+
+    return () => {
+      if (element) {
+        element.removeEventListener("mousedown", handleMouseDown)
+        document.removeEventListener("mousemove", handleMouseMove)
+        document.removeEventListener("mouseup", handleMouseUp)
+
+        element.removeEventListener("touchmove", handleTouchMove)
+      }
+    }
+  }, [isDragging])
+
   return (
     <>
       <div className="flex">
@@ -130,7 +188,10 @@ const BoardPage = () => {
             </div>
           </div>
           <div className="flex h-[calc(100vh-8rem)] bg-background">
-            <div className="flex max-h-full p-3 gap-3 overflow-x-auto overflow-y-hidden">
+            <div
+              ref={scrollRef}
+              className="flex max-h-full p-3 gap-3 overflow-x-auto overflow-y-hidden"
+            >
               {cards.map((card) => (
                 <CardCard card={card} key={card.id} members={members} />
               ))}

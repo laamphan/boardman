@@ -8,7 +8,6 @@ import {
 import { useEffect, useState } from "react"
 import { useDrop } from "react-dnd"
 import { useSelector } from "react-redux"
-import { Assignment, Card as DBCard, Task, User } from "../types/db"
 
 import { CardEditForm } from "@/components/CardEditForm"
 import { TaskCard } from "@/components/TaskCard"
@@ -21,8 +20,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/Card"
+
 import { db } from "@/firebase"
 import { RootState } from "@/redux/store"
+import { Assignment, Card as DBCard, Task, User } from "@/types/db"
 import { ItemTypes } from "@/types/dnd"
 
 type CardCardProps = {
@@ -83,8 +84,11 @@ export const CardCard = ({ card, members }: CardCardProps) => {
 
   const [, drop] = useDrop(() => ({
     accept: ItemTypes.TASK,
-    drop: (item: { taskId: string }) => {
+    drop: (item: { taskId: string; cardId: string }) => {
       if (item && item.taskId) {
+        if (item.cardId === card.id) {
+          return
+        }
         handleTaskUpdate({ taskId: item.taskId })
       }
     },
