@@ -11,6 +11,7 @@ import { useParams } from "react-router-dom"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/Avatar"
 
+import { Skeleton } from "@/components/ui/Skeleton"
 import { db } from "@/firebase"
 import { cn } from "@/lib/utils"
 import { RootState } from "@/redux/store"
@@ -72,6 +73,12 @@ export const SideBar = () => {
         </h1>
         <h1 className="text-xl font-bold mt-5">Members</h1>
         <div className="flex flex-col mt-4 gap-1">
+          {members.length === 0 && (
+            <div className="flex items-center py-3 px-4 rounded-lg">
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <Skeleton className="h-3.5 w-32 ml-2" />
+            </div>
+          )}
           {members.map((member) => (
             <div
               key={member.id}

@@ -17,6 +17,7 @@ import { MemberForm } from "@/components/MemberForm"
 import { SideBar } from "@/components/SideBar"
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card"
 
+import { Skeleton } from "@/components/ui/Skeleton"
 import { db } from "@/firebase"
 import { changeView } from "@/redux/user/userSlice"
 import { Board, Card as CardDB, Membership, User } from "@/types/db"
@@ -28,6 +29,7 @@ const BoardPage = () => {
   const [members, setMembers] = useState<User[]>([])
   const [isEditing, setIsEditing] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   const dispatch = useDispatch()
 
@@ -49,8 +51,7 @@ const BoardPage = () => {
     )
 
     return () => unsubscribe()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [params.boardId])
 
   useEffect(() => {
     const cardsQuery = query(
@@ -65,6 +66,7 @@ const BoardPage = () => {
           ...doc.data(),
         })) as CardDB[]
         setCards(docs)
+        setIsLoading(false)
       },
       (error) => {
         console.error("Error fetching cards: ", error)
@@ -72,8 +74,7 @@ const BoardPage = () => {
     )
 
     return () => unsubscribe()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [params.boardId])
 
   useEffect(() => {
     const membersQuery = query(
@@ -106,8 +107,7 @@ const BoardPage = () => {
     )
 
     return () => unsubscribe()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [params.boardId])
 
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -168,20 +168,40 @@ const BoardPage = () => {
   return (
     <>
       <div className="flex">
-        {board && <SideBar />}
+        {board ? (
+          <SideBar />
+        ) : (
+          <div className="w-72 flex-shrink-0 min-h-full hidden lg:flex bg-navbar">
+            <div className="p-4">
+              <h1
+                className="text-xl font-bold cursor-pointer"
+                onClick={() => dispatch(changeView("board"))}
+              >
+                All Tasks
+              </h1>
+              <h1 className="text-xl font-bold mt-5">Members</h1>
+              <div className="flex flex-col mt-4 gap-1">
+                <div className="flex items-center py-3 px-4 rounded-lg">
+                  <Skeleton className="h-8 w-8 rounded-full" />
+                  <Skeleton className="h-3.5 w-32 ml-2" />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-col grow overflow-hidden">
           <div className="flex justify-between items-center h-fit bg-secondary p-3">
-            {board && (
-              <div
-                className="cursor-pointer"
-                onClick={() => dispatch(changeView("board"))}
-              >
-                <h1 className="text-xl font-semibold ml-2 text-ellipsis whitespace-nowrap overflow-hidden">
-                  {board?.title}
-                </h1>
-              </div>
-            )}
+            <div
+              className="cursor-pointer"
+              onClick={() => dispatch(changeView("board"))}
+            >
+              <h1 className="text-xl font-semibold ml-2 text-ellipsis whitespace-nowrap overflow-hidden">
+                {board?.title || (
+                  <Skeleton className="h-3 w-32 bg-muted-foreground" />
+                )}
+              </h1>
+            </div>
             <div className="flex items-center gap-3 mr-1">
               <MemberForm />
               <BoardEditForm />
@@ -192,6 +212,17 @@ const BoardPage = () => {
               ref={scrollRef}
               className="flex max-h-full p-3 gap-3 overflow-x-auto overflow-y-hidden"
             >
+              {isLoading && (
+                <Card className="w-60 flex-shrink-0 h-fit">
+                  <div className="px-3 h-full w-full">
+                    <Skeleton className="mt-8 h-4 w-full" />
+                    <div className="mt-7 mb-5">
+                      <Skeleton className="mt-2 h-3 w-full" />
+                      <Skeleton className="mt-2 h-3 w-full" />
+                    </div>
+                  </div>
+                </Card>
+              )}
               {cards.map((card) => (
                 <CardCard card={card} key={card.id} members={members} />
               ))}
