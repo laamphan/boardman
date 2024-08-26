@@ -6,24 +6,24 @@ export const getTask = async (req: any, res: any, next: any) => {
   const { taskId, boardId } = req.params
   const userId = req.user.id
 
+  if (!taskId || !boardId) {
+    return res.status(400).json({ success: false, message: "Invalid request" })
+  }
   if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
+    return res.status(401).json({ success: false, message: "Unauthorized" })
   }
 
   try {
-    const membershipDocs = await db
+    const memberships = await db
       .collection("memberships")
       .where("boardId", "==", boardId)
       .get()
-    if (membershipDocs.empty) {
+    if (memberships.empty) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
-    const taskDoc = await db.collection("tasks").doc(taskId).get()
-    const taskData = taskDoc.data()
-
+    const task = await db.collection("tasks").doc(taskId).get()
+    const taskData = task.data()
     if (!taskData) {
       return res.status(404).json({ success: false, message: "Task not found" })
     }
@@ -38,31 +38,28 @@ export const getTasks = async (req: any, res: any, next: any) => {
   const { cardId, boardId } = req.params
   const userId = req.user.id
 
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
-  }
-
   if (!cardId || !boardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const membershipDocs = await db
+    const memberships = await db
       .collection("memberships")
       .where("boardId", "==", boardId)
       .where("memberId", "==", userId)
       .get()
-    if (membershipDocs.empty) {
+    if (memberships.empty) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
-    const tasksDocs = await db
+    const tasks = await db
       .collection("tasks")
       .where("cardId", "==", cardId)
       .get()
-    const tasksData = tasksDocs.docs.map((taskDoc) => taskDoc.data())
+    const tasksData = tasks.docs.map((task) => task.data())
 
     return res.status(200).json(tasksData)
   } catch (error) {
@@ -77,24 +74,20 @@ export const createTask = async (req: any, res: any, next: any) => {
   if (!title || !cardId || !status) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
-
   if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
+    return res.status(401).json({ success: false, message: "Unauthorized" })
   }
 
   try {
-    const membershipDocs = await db
+    const memberships = await db
       .collection("memberships")
       .where("memberId", "==", userId)
       .get()
-    if (membershipDocs.empty) {
+    if (memberships.empty) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
     const taskId = uuidV4()
-
     await db
       .collection("tasks")
       .doc(taskId)
@@ -122,27 +115,22 @@ export const updateTaskCard = async (req: any, res: any, next: any) => {
   const { taskId, cardId } = req.params
   const userId = req.user.id
 
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
-  }
-
   if (!cardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const taskDoc = await db.collection("tasks").doc(taskId).get()
-    const taskData = taskDoc.data()
-
+    const task = await db.collection("tasks").doc(taskId).get()
+    const taskData = task.data()
     if (!taskData) {
       return res.status(404).json({ success: false, message: "Task not found" })
     }
 
-    // dragged to another card
-    const cardDoc = await db.collection("cards").doc(cardId).get()
-    const cardData = cardDoc.data()
+    const card = await db.collection("cards").doc(cardId).get()
+    const cardData = card.data()
     if (!cardData) {
       return res.status(404).json({ success: false, message: "Card not found" })
     }
@@ -151,10 +139,9 @@ export const updateTaskCard = async (req: any, res: any, next: any) => {
       cardId,
     })
 
-    const updatedTaskDoc = await db.collection("tasks").doc(taskId).get()
-    const updatedTaskData = updatedTaskDoc.data()
+    const updatedTask = await db.collection("tasks").doc(taskId).get()
 
-    return res.status(200).json(updatedTaskData)
+    return res.status(200).json(updatedTask.data())
   } catch (error) {
     next(error)
   }
@@ -168,25 +155,21 @@ export const updateTask = async (req: any, res: any, next: any) => {
   if (!title || !description || !taskId || !status) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
-
   if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
+    return res.status(401).json({ success: false, message: "Unauthorized" })
   }
 
   try {
-    const membershipDocs = await db
+    const membership = await db
       .collection("memberships")
       .where("boardId", "==", boardId)
       .get()
-    if (membershipDocs.empty) {
+    if (membership.empty) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
-    const taskDoc = await db.collection("tasks").doc(taskId).get()
-    const taskData = taskDoc.data()
-
+    const task = await db.collection("tasks").doc(taskId).get()
+    const taskData = task.data()
     if (!taskData) {
       return res.status(404).json({ success: false, message: "Task not found" })
     }
@@ -214,20 +197,16 @@ export const assignTask = async (req: any, res: any, next: any) => {
   const { assignee } = req.body
   const userId = req.user.id
 
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
-  }
-
   if (!taskId || !assignee) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const taskDoc = await db.collection("tasks").doc(taskId).get()
-    const taskData = taskDoc.data()
-
+    const task = await db.collection("tasks").doc(taskId).get()
+    const taskData = task.data()
     if (!taskData) {
       return res.status(404).json({ success: false, message: "Task not found" })
     }
@@ -267,28 +246,29 @@ export const unassignTask = async (req: any, res: any, next: any) => {
   if (!taskId || !memberId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const taskDoc = await db.collection("tasks").doc(taskId).get()
-    const taskData = taskDoc.data()
-
+    const task = await db.collection("tasks").doc(taskId).get()
+    const taskData = task.data()
     if (!taskData) {
       return res.status(404).json({ success: false, message: "Task not found" })
     }
 
-    const assignmentDocs = await db
+    const assignments = await db
       .collection("assignments")
       .where("taskId", "==", taskId)
       .where("memberId", "==", memberId)
       .get()
-
-    if (assignmentDocs.empty) {
+    if (assignments.empty) {
       return res
         .status(404)
         .json({ success: false, message: "Assignment not found" })
     }
 
-    await db.collection("assignments").doc(assignmentDocs.docs[0].id).delete()
+    await db.collection("assignments").doc(assignments.docs[0].id).delete()
 
     return res.status(204).json()
   } catch (error) {
@@ -303,28 +283,30 @@ export const deleteTask = async (req: any, res: any, next: any) => {
   if (!taskId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const taskDoc = await db.collection("tasks").doc(taskId).get()
-    const taskData = taskDoc.data()
+    const task = await db.collection("tasks").doc(taskId).get()
+    const taskData = task.data()
     if (!taskData) {
       return res.status(404).json({ success: false, message: "Task not found" })
     }
 
-    const cardDoc = await db.collection("cards").doc(taskData.cardId).get()
-    const cardData = cardDoc.data()
+    const card = await db.collection("cards").doc(taskData.cardId).get()
+    const cardData = card.data()
     if (!cardData) {
       return res.status(404).json({ success: false, message: "Card not found" })
     }
 
-    const boardDoc = await db.collection("boards").doc(cardData.boardId).get()
-    const boardData = boardDoc.data()
+    const board = await db.collection("boards").doc(cardData.boardId).get()
+    const boardData = board.data()
     if (!boardData) {
       return res
         .status(404)
         .json({ success: false, message: "Board not found" })
     }
-
     if (userId !== boardData.ownerId) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
@@ -364,11 +346,8 @@ export const addAttachment = async (req: any, res: any, next: any) => {
   if (!taskId || !type || !number || !repoId || !repoUrl) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
-
   if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
+    return res.status(401).json({ success: false, message: "Unauthorized" })
   }
 
   if (type !== "pull_request" && type !== "commit" && type !== "issue") {
@@ -378,15 +357,13 @@ export const addAttachment = async (req: any, res: any, next: any) => {
   }
 
   try {
-    const taskDoc = await db.collection("tasks").doc(taskId).get()
-    const taskData = taskDoc.data()
-
+    const task = await db.collection("tasks").doc(taskId).get()
+    const taskData = task.data()
     if (!taskData) {
       return res.status(404).json({ success: false, message: "Task not found" })
     }
 
     const attachmentId = uuidV4()
-
     await db.collection("attachments").doc(attachmentId).set({
       id: attachmentId,
       taskId,
@@ -416,20 +393,16 @@ export const removeAttachment = async (req: any, res: any, next: any) => {
   if (!attachmentId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
-
   if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
+    return res.status(401).json({ success: false, message: "Unauthorized" })
   }
 
   try {
-    const attachmentDoc = await db
+    const attachment = await db
       .collection("attachments")
       .doc(attachmentId)
       .get()
-    const attachmentData = attachmentDoc.data()
-
+    const attachmentData = attachment.data()
     if (!attachmentData) {
       return res
         .status(404)

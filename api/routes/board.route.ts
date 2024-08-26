@@ -32,6 +32,7 @@ router.delete(
   verifyToken,
   inviteReject
 )
+
 router.delete("/:boardId/members/:memberId", verifyToken, deleteMembership)
 
 export default router

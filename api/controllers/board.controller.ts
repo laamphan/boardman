@@ -6,9 +6,7 @@ import { db } from "../db/firebaseConfig"
 export const getBoardsByUserId = async (req: any, res: any, next: any) => {
   const userId = req.user.id
   if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
+    return res.status(401).json({ success: false, message: "Unauthorized" })
   }
 
   try {
@@ -24,8 +22,8 @@ export const getBoardsByUserId = async (req: any, res: any, next: any) => {
     const boards = await db.getAll(
       ...boardIds.map((id) => db.collection("boards").doc(id))
     )
-    const boardData = boards.map((board) => board.data())
-    return res.status(200).json(boardData)
+    const boardsData = boards.map((board) => board.data())
+    return res.status(200).json(boardsData)
   } catch (error) {
     next(error)
   }
@@ -36,30 +34,30 @@ export const getBoard = async (req: any, res: any, next: any) => {
   const userId = req.user.id
 
   if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
+    return res.status(401).json({ success: false, message: "Unauthorized" })
   }
-
   if (!boardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
 
   try {
-    const membershipQuery = await db
+    const membership = await db
       .collection("memberships")
       .where("boardId", "==", boardId)
       .where("memberId", "==", userId)
       .get()
-    if (membershipQuery.empty) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Unauthorized request" })
+    if (membership.empty) {
+      return res.status(401).json({ success: false, message: "Unauthorized" })
     }
 
-    const boardDoc = await db.collection("boards").doc(boardId).get()
-    const boardData = boardDoc.data()
-    return res.status(200).json(boardData)
+    const board = await db.collection("boards").doc(boardId).get()
+    if (!board.exists) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Board not found" })
+    }
+
+    return res.status(200).json(board.data())
   } catch (error) {
     next(error)
   }
@@ -72,14 +70,13 @@ export const createBoard = async (req: any, res: any, next: any) => {
   if (!title || !ownerId || !description) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
-
   if (userId !== ownerId) {
     return res.status(403).json({ success: false, message: "Forbidden" })
   }
 
   try {
+    // TODO transaction
     const boardId = uuidV4()
-
     await db.collection("boards").doc(boardId).set({
       id: boardId,
       ownerId,
@@ -88,7 +85,6 @@ export const createBoard = async (req: any, res: any, next: any) => {
     })
 
     const membershipId = uuidV4()
-
     await db.collection("memberships").doc(membershipId).set({
       id: membershipId,
       boardId,
@@ -114,22 +110,18 @@ export const updateBoard = async (req: any, res: any, next: any) => {
   if (!title || !description || !boardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
-
   if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
+    return res.status(401).json({ success: false, message: "Unauthorized" })
   }
 
   try {
-    const boardDoc = await db.collection("boards").doc(boardId).get()
-    const boardData = boardDoc.data()
+    const board = await db.collection("boards").doc(boardId).get()
+    const boardData = board.data()
     if (!boardData) {
       return res
         .status(404)
         .json({ success: false, message: "Board not found" })
     }
-
     if (userId !== boardData.ownerId) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
@@ -157,20 +149,23 @@ export const deleteBoard = async (req: any, res: any, next: any) => {
   if (!boardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const boardDoc = await db.collection("boards").doc(boardId).get()
-    const boardData = boardDoc.data()
+    const board = await db.collection("boards").doc(boardId).get()
+    const boardData = board.data()
     if (!boardData) {
       return res
         .status(404)
         .json({ success: false, message: "Board not found" })
     }
-
     if (userId !== boardData.ownerId) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
+    // TODO transaction
     const memberships = await db
       .collection("memberships")
       .where("boardId", "==", boardId)
@@ -229,6 +224,7 @@ export const deleteBoard = async (req: any, res: any, next: any) => {
           db.collection("tasks").doc(task.id).delete()
         })
       }
+
       cards.forEach((card) => {
         db.collection("cards").doc(card.id).delete()
       })
@@ -249,58 +245,59 @@ export const inviteUser = async (req: any, res: any, next: any) => {
   if (!boardId || !email) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const boardDoc = await db.collection("boards").doc(boardId).get()
-    const boardData = boardDoc.data()
+    const board = await db.collection("boards").doc(boardId).get()
+    const boardData = board.data()
     if (!boardData) {
       return res
         .status(404)
         .json({ success: false, message: "Board not found" })
     }
-
     if (userId !== boardData.ownerId) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
-    const senderQuery = await db
-      .collection("users")
-      .where("id", "==", userId)
-      .get()
-    if (senderQuery.empty) {
+    const sender = await db.collection("users").where("id", "==", userId).get()
+    if (sender.empty) {
       return res
         .status(404)
         .json({ success: false, message: "Sender not found" })
     }
-    const senderData = senderQuery.docs[0].data()
+    const senderData = sender.docs[0].data()
 
-    const userQuery = await db
+    const invitee = await db
       .collection("users")
       .where("email", "==", email)
       .get()
-    if (userQuery.empty) {
-      return res.status(404).json({ success: false, message: "User not found" })
+    if (invitee.empty) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Invitee not found" })
     }
 
-    const userData = userQuery.docs[0].data()
+    const inviteeData = invitee.docs[0].data()
 
-    const membershipQuery = await db
+    const membership = await db
       .collection("memberships")
       .where("boardId", "==", boardId)
-      .where("memberId", "==", userData.id)
+      .where("memberId", "==", inviteeData.id)
       .get()
-    if (!membershipQuery.empty) {
+    if (!membership.empty) {
       return res
         .status(400)
         .json({ success: false, message: "User is already a member" })
     }
 
-    const previousInvitationQuery = await db
+    const previousInvitation = await db
       .collection("invitations")
       .where("boardId", "==", boardId)
       .where("memberEmail", "==", email)
       .get()
-    if (!previousInvitationQuery.empty) {
+    if (!previousInvitation.empty) {
       return res
         .status(400)
         .json({ success: false, message: "User has already been invited" })
@@ -314,7 +311,7 @@ export const inviteUser = async (req: any, res: any, next: any) => {
       memberEmail: email,
     })
 
-    // send email
+    // send invitation email
     const mailOptions = {
       from: process.env.NODEMAILER_SENDER,
       to: email,
@@ -336,35 +333,37 @@ export const inviteAccept = async (req: any, res: any, next: any) => {
   if (!invitationId || !boardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const invitationDoc = await db
+    const user = await db.collection("users").where("id", "==", userId).get()
+    const userData = user.docs[0].data()
+    if (!userData) {
+      return res.status(404).json({ success: false, message: "User not found" })
+    }
+
+    const invitation = await db
       .collection("invitations")
       .doc(invitationId)
       .get()
-    const invitationData = invitationDoc.data()
+    const invitationData = invitation.data()
     if (!invitationData) {
       return res
         .status(404)
         .json({ success: false, message: "Invitation not found" })
     }
+    if (invitationData.memberEmail !== userData.email) {
+      return res.status(403).json({ success: false, message: "Forbidden" })
+    }
 
-    const boardDoc = await db.collection("boards").doc(boardId).get()
-    const boardData = boardDoc.data()
+    const board = await db.collection("boards").doc(boardId).get()
+    const boardData = board.data()
     if (!boardData) {
       return res
         .status(404)
         .json({ success: false, message: "Board not found" })
-    }
-
-    const userDoc = await db.collection("users").where("id", "==", userId).get()
-    const userData = userDoc.docs[0].data()
-    if (!userData) {
-      return res.status(404).json({ success: false, message: "User not found" })
-    }
-
-    if (userData.email !== invitationData.memberEmail) {
-      return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
     const membershipId = uuidV4()
@@ -389,35 +388,37 @@ export const inviteReject = async (req: any, res: any, next: any) => {
   if (!invitationId || !boardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const invitationDoc = await db
+    const user = await db.collection("users").where("id", "==", userId).get()
+    const userData = user.docs[0].data()
+    if (!userData) {
+      return res.status(404).json({ success: false, message: "User not found" })
+    }
+
+    const invitation = await db
       .collection("invitations")
       .doc(invitationId)
       .get()
-    const invitationData = invitationDoc.data()
+    const invitationData = invitation.data()
     if (!invitationData) {
       return res
         .status(404)
         .json({ success: false, message: "Invitation not found" })
     }
+    if (invitationData.memberEmail !== userData.email) {
+      return res.status(403).json({ success: false, message: "Forbidden" })
+    }
 
-    const boardDoc = await db.collection("boards").doc(boardId).get()
-    const boardData = boardDoc.data()
+    const board = await db.collection("boards").doc(boardId).get()
+    const boardData = board.data()
     if (!boardData) {
       return res
         .status(404)
         .json({ success: false, message: "Board not found" })
-    }
-
-    const userDoc = await db.collection("users").where("id", "==", userId).get()
-    const userData = userDoc.docs[0].data()
-    if (!userData) {
-      return res.status(404).json({ success: false, message: "User not found" })
-    }
-
-    if (userData.email !== invitationData.memberEmail) {
-      return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
     await db.collection("invitations").doc(invitationId).delete()
@@ -435,20 +436,21 @@ export const deleteMembership = async (req: any, res: any, next: any) => {
   if (!boardId || !memberId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const boardDoc = await db.collection("boards").doc(boardId).get()
-    const boardData = boardDoc.data()
+    const board = await db.collection("boards").doc(boardId).get()
+    const boardData = board.data()
     if (!boardData) {
       return res
         .status(404)
         .json({ success: false, message: "Board not found" })
     }
-
     if (userId !== boardData.ownerId) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
-
     if (userId === memberId) {
       return res.status(403).json({
         success: false,
@@ -456,43 +458,43 @@ export const deleteMembership = async (req: any, res: any, next: any) => {
       })
     }
 
-    const membershipQuery = await db
+    const membership = await db
       .collection("memberships")
       .where("boardId", "==", boardId)
       .where("memberId", "==", memberId)
       .get()
-    if (membershipQuery.empty) {
+    if (membership.empty) {
       return res
         .status(404)
         .json({ success: false, message: "Membership not found" })
     }
 
-    const cardsQuery = await db
+    const cards = await db
       .collection("cards")
       .where("boardId", "==", boardId)
       .get()
-    if (!cardsQuery.empty) {
-      const cardIds = cardsQuery.docs.map((doc) => doc.id)
-      const tasksQuery = await db
+    if (!cards.empty) {
+      const cardIds = cards.docs.map((doc) => doc.id)
+      const tasks = await db
         .collection("tasks")
         .where("cardId", "in", cardIds)
         .get()
-      if (!tasksQuery.empty) {
-        const taskIds = tasksQuery.docs.map((doc) => doc.id)
-        const assignmentsQuery = await db
+      if (!tasks.empty) {
+        const taskIds = tasks.docs.map((doc) => doc.id)
+        const assignments = await db
           .collection("assignments")
           .where("taskId", "in", taskIds)
           .where("memberId", "==", memberId)
           .get()
-        if (!assignmentsQuery.empty) {
-          assignmentsQuery.forEach((assignment) => {
+        if (!assignments.empty) {
+          assignments.forEach((assignment) => {
             db.collection("assignments").doc(assignment.id).delete()
           })
         }
       }
     }
 
-    membershipQuery.forEach((membership) => {
+    membership.forEach((membership) => {
       db.collection("memberships").doc(membership.id).delete()
     })
 

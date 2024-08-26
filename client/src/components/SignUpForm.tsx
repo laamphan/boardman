@@ -133,7 +133,6 @@ export default function SignUpForm() {
       const data = await res.json()
       if (data.success === false) {
         dispatch(signUpFailure(data.message))
-        navigate("/signin")
         return
       }
 

@@ -5,66 +5,41 @@ export const getRepoInfo = async (req: any, res: any, next: any) => {
   const userId = req.user.id
   const ghToken = req.user.ghToken
 
-  if (!userId) {
-    return res.status(401).json({ message: "Unauthorized request" })
-  }
   if (!repoUrl) {
     return res.status(400).json({ message: "Repository URL is required" })
+  }
+  if (!userId) {
+    return res.status(401).json({ message: "Unauthorized" })
   }
 
   try {
     const { owner, repo } = extractOwnerAndRepo(repoUrl as string)
 
-    const fetchAllInfo = async () => {
-      const repoRes = !ghToken
-        ? await fetch(`https://api.github.com/repos/${owner}/${repo}`)
-        : await fetch(`https://api.github.com/repos/${owner}/${repo}`, {
+    const fetchWithAuth = async (url: string) => {
+      const options = ghToken
+        ? {
             headers: {
               Authorization: `token ${ghToken}`,
               Accept: "application/vnd.github.v3+json",
             },
-          })
-      const branchesRes = !ghToken
-        ? await fetch(`https://api.github.com/repos/${owner}/${repo}/branches`)
-        : await fetch(
-            `https://api.github.com/repos/${owner}/${repo}/branches`,
-            {
-              headers: {
-                Authorization: `token ${ghToken}`,
-                Accept: "application/vnd.github.v3+json",
-              },
-            }
-          )
-      const pullsRes = !ghToken
-        ? await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`)
-        : await fetch(`https://api.github.com/repos/${owner}/${repo}/pulls`, {
-            headers: {
-              Authorization: `token ${ghToken}`,
-              Accept: "application/vnd.github.v3+json",
-            },
-          })
-      const issuesRes = !ghToken
-        ? await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`)
-        : await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
-            headers: {
-              Authorization: `token ${ghToken}`,
-              Accept: "application/vnd.github.v3+json",
-            },
-          })
-      const commitsRes = !ghToken
-        ? await fetch(`https://api.github.com/repos/${owner}/${repo}/commits`)
-        : await fetch(`https://api.github.com/repos/${owner}/${repo}/commits`, {
-            headers: {
-              Authorization: `token ${ghToken}`,
-              Accept: "application/vnd.github.v3+json",
-            },
-          })
+          }
+        : {}
+      const response = await fetch(url, options)
+      return response.json()
+    }
 
-      const repoData: any = await repoRes.json()
-      const branchesData: any = await branchesRes.json()
-      const pullsData: any = await pullsRes.json()
-      const issuesData: any = await issuesRes.json()
-      const commitsData: any = await commitsRes.json()
+    const fetchRepoInfo = async () => {
+      const baseUrl = `https://api.github.com/repos/${owner}/${repo}`
+      const endpoints = ["", "/branches", "/pulls", "/issues", "/commits"]
+      const [
+        repoData,
+        branchesData,
+        pullsData,
+        issuesData,
+        commitsData,
+      ]: Array<any> = await Promise.all(
+        endpoints.map((endpoint) => fetchWithAuth(`${baseUrl}${endpoint}`))
+      )
 
       if (
         repoData.message ||
@@ -73,7 +48,9 @@ export const getRepoInfo = async (req: any, res: any, next: any) => {
         issuesData.message ||
         commitsData.message
       ) {
-        throw new Error("Failed to fetch repository information")
+        return res.status(400).json({
+          message: "Error fetching repository information",
+        })
       }
 
       const repoId = repoData.id
@@ -103,7 +80,7 @@ export const getRepoInfo = async (req: any, res: any, next: any) => {
       }
     }
 
-    const { repoId, branches, pulls, issues, commits } = await fetchAllInfo()
+    const { repoId, branches, pulls, issues, commits } = await fetchRepoInfo()
 
     return res.status(200).json({
       repoUrl: `https://github.com/${owner}/${repo}`,

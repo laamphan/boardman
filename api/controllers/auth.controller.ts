@@ -5,20 +5,23 @@ import { v4 as uuidV4 } from "uuid"
 import { db } from "../db/firebaseConfig"
 import { transporter } from "../index"
 
+/**
+ * sign up with multiple providers
+ * create a temporary user with user data & code
+ * then send verification code to email
+ */
 export const signUp = async (req: any, res: any, next: any) => {
+  const { name, email, avatar, ghToken } = req.body
+  if (!email) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid request",
+    })
+  }
+
   try {
-    const { name, email, avatar, ghToken } = req.body
-
-    if (!email) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email is required" })
-    }
-
-    const userRef = db.collection("users").doc(email)
-    const userSnap = await userRef.get()
-
-    if (userSnap.exists) {
+    const dbUser = await db.collection("users").doc(email).get()
+    if (dbUser.exists) {
       return res
         .status(400)
         .json({ success: false, message: "User already exists" })
@@ -26,14 +29,6 @@ export const signUp = async (req: any, res: any, next: any) => {
 
     const code = crypto.randomBytes(16).toString("hex")
     const expiration = Date.now() + 1000 * 60 * 15
-
-    const tempUserRef = db.collection("codes").doc(email)
-    const tempUserSnap = await tempUserRef.get()
-
-    if (tempUserSnap.exists) {
-      await db.collection("codes").doc(email).delete()
-    }
-
     await db
       .collection("codes")
       .doc(email)
@@ -53,8 +48,11 @@ export const signUp = async (req: any, res: any, next: any) => {
     }
     await transporter.sendMail(mailOptions)
 
-    // sign ghToken to preserve it while waiting for verification code
-    // sign email mostly another layer of security
+    /**
+     * sign github token - ghToken : preserve it while waiting for verification code
+     * sign email : prevent email spoofing
+     * jwt token will be replaced after verification
+     */
     if (ghToken) {
       const token = jwt.sign(
         {
@@ -63,23 +61,6 @@ export const signUp = async (req: any, res: any, next: any) => {
         },
         process.env.JWT_SECRET!
       )
-
-      return res
-        .cookie("access_token", token, { httpOnly: true })
-        .status(200)
-        .json({
-          name: name || email,
-          email,
-          avatar: avatar || "",
-        })
-    } else {
-      const token = jwt.sign(
-        {
-          email,
-        },
-        process.env.JWT_SECRET!
-      )
-
       return res
         .cookie("access_token", token, { httpOnly: true })
         .status(200)
@@ -89,23 +70,40 @@ export const signUp = async (req: any, res: any, next: any) => {
           avatar: avatar || "",
         })
     }
+
+    const token = jwt.sign(
+      {
+        email,
+      },
+      process.env.JWT_SECRET!
+    )
+    return res
+      .cookie("access_token", token, { httpOnly: true })
+      .status(200)
+      .json({
+        name: name || email,
+        email,
+        avatar: avatar || "",
+      })
   } catch (error) {
     next(error)
   }
 }
 
+/**
+ * sign in with multiple providers & send verification code to email
+ */
 export const signIn = async (req: any, res: any, next: any) => {
-  try {
-    const { email, ghToken } = req.body
-    if (!email) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Email is required" })
-    }
+  const { email, ghToken } = req.body
+  if (!email) {
+    return res
+      .status(400)
+      .json({ success: false, message: "Email is required" })
+  }
 
-    const userRef = db.collection("users").doc(email)
-    const userSnap = await userRef.get()
-    if (!userSnap.exists) {
+  try {
+    const user = await db.collection("users").doc(email).get()
+    if (!user.exists) {
       return res.status(400).json({ success: false, message: "User not found" })
     }
 
@@ -135,19 +133,19 @@ export const signIn = async (req: any, res: any, next: any) => {
       return res
         .cookie("access_token", token, { httpOnly: true })
         .status(200)
-        .json(userSnap.data())
-    } else {
-      const token = jwt.sign(
-        {
-          email,
-        },
-        process.env.JWT_SECRET!
-      )
-      return res
-        .cookie("access_token", token, { httpOnly: true })
-        .status(200)
-        .json(userSnap.data())
+        .json(user.data())
     }
+
+    const token = jwt.sign(
+      {
+        email,
+      },
+      process.env.JWT_SECRET!
+    )
+    return res
+      .cookie("access_token", token, { httpOnly: true })
+      .status(200)
+      .json(user.data())
   } catch (error) {
     next(error)
   }
@@ -170,54 +168,48 @@ export const verify = async (req: any, res: any, next: any) => {
       .status(400)
       .json({ success: false, message: "Email and code are required" })
   }
-
   if (body.email !== email) {
-    return res
-      .status(400)
-      .json({ success: false, message: "Invalid email address" })
+    return res.status(400).json({
+      success: false,
+      message: "Invalid request - different email from token",
+    })
   }
 
   try {
-    const doc = await db.collection("codes").doc(email).get()
-    if (!doc.exists) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Invalid request" })
+    const code = await db.collection("codes").doc(email).get()
+    if (!code.exists) {
+      return res.status(404).json({ success: false, message: "Invalid email" })
     }
 
-    const data = doc.data()
+    const data = code.data()
     if (data?.code !== body.code) {
       return res.status(400).json({ success: false, message: "Invalid code" })
     }
-
     if (data?.expiration < Date.now()) {
       return res
         .status(400)
         .json({ success: false, message: "Code expired. Please sign in again" })
     }
 
-    const userRef = db.collection("users").doc(email)
-    const userSnap = await userRef.get()
+    const user = await db.collection("users").doc(email).get()
+    const tempUser = await db.collection("codes").doc(email).get()
 
-    const tempUserRef = db.collection("codes").doc(email)
-    const tempUserSnap = await tempUserRef.get()
-
-    if (!userSnap.exists && !tempUserSnap.exists) {
+    if (!user.exists && !tempUser.exists) {
       return res.status(404).json({ success: false, message: "User not found" })
     }
 
-    if (userSnap.exists) {
+    if (user.exists) {
       const token = ghToken
         ? jwt.sign(
             {
-              id: userSnap.data()!.id,
+              id: user.data()!.id,
               ghToken,
             },
             process.env.JWT_SECRET!
           )
         : jwt.sign(
             {
-              id: userSnap.data()!.id,
+              id: user.data()!.id,
             },
             process.env.JWT_SECRET!
           )
@@ -226,52 +218,55 @@ export const verify = async (req: any, res: any, next: any) => {
       return res
         .cookie("access_token", token, { httpOnly: true })
         .status(200)
-        .json(userSnap.data())
+        .json(user.data())
     }
 
-    if (tempUserSnap.exists) {
-      const userData = tempUserSnap.data()
-      if (userData && "avatar" in userData && "name" in userData) {
-        const { name, avatar } = userData
-        const id = uuidV4()
-        await db.collection("users").doc(email).set({
+    if (tempUser.exists) {
+      const userData = tempUser.data()
+      if (!userData || !("avatar" in userData) || !("name" in userData)) {
+        return res
+          .status(400)
+          .json({ success: false, message: "Invalid user data" })
+      }
+
+      const { name, avatar } = userData
+      const id = uuidV4()
+
+      // create new user from temp user's data
+      await db.collection("users").doc(email).set({
+        id,
+        name,
+        email,
+        avatar,
+      })
+
+      // sign github token if exists
+      const token = ghToken
+        ? jwt.sign(
+            {
+              id,
+              ghToken,
+            },
+            process.env.JWT_SECRET!
+          )
+        : jwt.sign(
+            {
+              id,
+            },
+            process.env.JWT_SECRET!
+          )
+
+      await db.collection("codes").doc(email).delete()
+
+      return res
+        .cookie("access_token", token, { httpOnly: true })
+        .status(200)
+        .json({
           id,
           name,
           email,
           avatar,
         })
-
-        const token = ghToken
-          ? jwt.sign(
-              {
-                id,
-                ghToken,
-              },
-              process.env.JWT_SECRET!
-            )
-          : jwt.sign(
-              {
-                id,
-              },
-              process.env.JWT_SECRET!
-            )
-
-        await db.collection("codes").doc(email).delete()
-
-        return res
-          .cookie("access_token", token, { httpOnly: true })
-          .status(200)
-          .json({
-            id,
-            name,
-            email,
-            avatar,
-          })
-      } else {
-        return res
-          .status(400)
-          .json({ success: false, message: "Invalid user data" })
-      }
     }
   } catch (error) {
     next(error)

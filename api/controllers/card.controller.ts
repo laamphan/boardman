@@ -7,33 +7,30 @@ export const getCards = async (req: any, res: any, next: any) => {
   const { boardId } = req.params
   const userId = req.user.id
 
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
-  }
-
   if (!boardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const membershipQuery = await db
+    const membership = await db
       .collection("memberships")
       .where("boardId", "==", boardId)
       .where("memberId", "==", userId)
       .get()
-    if (membershipQuery.empty) {
+    if (membership.empty) {
       return res.status(403).json({ success: false, message: "Forbidden" })
     }
 
-    const cardsQuery = await db
+    const cards = await db
       .collection("cards")
       .where("boardId", "==", boardId)
       .get()
-    const cards = cardsQuery.docs.map((doc) => doc.data()) as Card[]
+    const cardsData = cards.docs.map((doc) => doc.data()) as Card[]
 
-    return res.status(200).json(cards)
+    return res.status(200).json(cardsData)
   } catch (error) {
     next(error)
   }
@@ -41,40 +38,35 @@ export const getCards = async (req: any, res: any, next: any) => {
 
 export const createCard = async (req: any, res: any, next: any) => {
   const { boardId } = req.params
-
   const { title, description } = req.body
   const userId = req.user.id
-
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
-  }
 
   if (!title || !description || !boardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
-
-  const boardDoc = await db.collection("boards").doc(boardId).get()
-  const boardData = boardDoc.data()
-  if (!boardData) {
-    return res.status(404).json({ success: false, message: "Board not found" })
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
   }
 
   try {
-    const cardId = uuidV4()
+    const board = await db.collection("boards").doc(boardId).get()
+    const boardData = board.data()
+    if (!boardData) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Board not found" })
+    }
 
+    const cardId = uuidV4()
     await db.collection("cards").doc(cardId).set({
       id: cardId,
       boardId,
       title,
       description,
     })
+    const card = await db.collection("cards").doc(cardId).get()
 
-    const cardDoc = await db.collection("cards").doc(cardId).get()
-    const cardData = cardDoc.data()
-
-    res.status(201).json(cardData)
+    res.status(201).json(card.data())
     return
   } catch (error) {
     next(error)
@@ -89,16 +81,13 @@ export const updateCard = async (req: any, res: any, next: any) => {
   if (!title || !description || !cardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
-
   if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
+    return res.status(401).json({ success: false, message: "Unauthorized" })
   }
 
   try {
-    const cardDoc = await db.collection("cards").doc(cardId).get()
-    const cardData = cardDoc.data()
+    const card = await db.collection("cards").doc(cardId).get()
+    const cardData = card.data()
     if (!cardData) {
       return res.status(404).json({ success: false, message: "Card not found" })
     }
@@ -123,19 +112,16 @@ export const deleteCard = async (req: any, res: any, next: any) => {
   const { cardId } = req.params
   const userId = req.user.id
 
-  if (!userId) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Unauthorized request" })
-  }
-
   if (!cardId) {
     return res.status(400).json({ success: false, message: "Invalid request" })
   }
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" })
+  }
 
   try {
-    const cardDoc = await db.collection("cards").doc(cardId).get()
-    const cardData = cardDoc.data()
+    const card = await db.collection("cards").doc(cardId).get()
+    const cardData = card.data()
     if (!cardData) {
       return res.status(404).json({ success: false, message: "Card not found" })
     }
