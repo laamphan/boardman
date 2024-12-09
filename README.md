@@ -1,3 +1,5 @@
+# Project management tool - helps teams organize tasks, collaborate seamlessly, and track progress to achieve their goals effortlessly.
+
 # Repository Structure
 
 This document provides an overview of the structure of the repository.
